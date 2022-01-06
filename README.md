@@ -1,6 +1,6 @@
 ## About
 
-This tool converts a NIfTI 3D voxel image to triangulated mesh. It can save meshes in in the GIfTI (.gii), mz3, ply, FreeSurfer (.pial), stl, vtk, formats. You can use [dcm2niix](https://github.com/rordenlab/dcm2niix) to convert DICOM images to NIfTI.
+This tool converts a NIfTI 3D voxel image to a triangulated mesh. It can save meshes in in the GIfTI (.gii), mz3, obj, ply, FreeSurfer (.pial), stl, vtk, formats. You can use [dcm2niix](https://github.com/rordenlab/dcm2niix) to convert DICOM images to NIfTI.
 
 ## Compiling
 
@@ -16,7 +16,7 @@ You can also compile the program using Windows, but you may find it easier to do
 
 ## Usage
 
-This application converts 
+Here are the instructions for using this tool (you can also run the executable without any arguments to see this help):
 
 ```
 Converts a NIfTI voxelwise image to triangulated mesh.
@@ -29,7 +29,7 @@ Options
     -r v    reduction factor (default 0.25)
     -s v    post-smoothing iterations (default 0)
     -v v    verbose (0=silent, 1=verbose, default 0)
-mesh extension sets format (.gii, .mz3, .obj, .ply, .pial, .stl, .vtk)
+mesh extension sets format (.ply, .mz3, .obj, .ply, .pial, .stl, .vtk)
 Example: './nii2mesh myInput.nii myOutput.obj'
 Example: './nii2mesh -i 22 myInput.nii myOutput.obj'
 Example: './nii2mesh -p 0 img.nii out.ply'
@@ -38,7 +38,7 @@ Example: './nii2mesh -r 0.1 img.nii small.gii'
 ```
 ## Processing Steps
 
-The program provides several options to allow you to fine tune conversion. To illustrate these options, we will show how they influence the included image bet.nii.gz. You can use [MRIcroGL](https://www.nitrc.org/plugins/mwiki/index.php/mricrogl:MainPage) to view this voxel-based data. The raw data looks like this:
+The program provides several options to allow you to fine tune the conversion. To illustrate these options, we will show how they influence the included image `bet.nii.gz`. You can use [MRIcroGL](https://www.nitrc.org/plugins/mwiki/index.php/mricrogl:MainPage) to view this voxel-based data. The raw data looks like this:
 
 ![MRIcroGL view of NIfTI image](voxels.png)
 
@@ -49,17 +49,17 @@ In the images below, we will view the resulting meshes using [Surfice](https://w
 1. You can choose to pre-smooth your data (`-p 1`) or not (`-p 0`) prior to making a mesh. This tends emulates a Gaussian blur, which tends to attenuate noise in the image. 
 
 ```
-./nii2mesh -p 0 bet.nii.gz p0.gii
-./nii2mesh -p 1 bet.nii.gz p1.gii
+./nii2mesh -p 0 bet.nii.gz p0.ply
+./nii2mesh -p 1 bet.nii.gz p1.ply
 ```
 
 ![Influence of p 0 vs p 1](p01.jpg)
 
-3. You can choose to only retain the largest connected object (`-1 1`) or keep all objects (`-l 0`). The image below shows that the balls and other small blobs do not appear when `-l 1` is selected.
+3. You can choose to only retain the largest connected object (`-l 1`) or keep all objects (`-l 0`). The image below shows that the balls and other small blobs do not appear when `-l 1` is selected.
 
 ```
-./nii2mesh -l 0 bet.nii.gz l0.gii
-./nii2mesh -l 1 bet.nii.gz l1.gii
+./nii2mesh -l 0 bet.nii.gz l0.ply
+./nii2mesh -l 1 bet.nii.gz l1.ply
 ```
 
 ![Influence of l 0 vs l 1](l01.jpg)
@@ -67,8 +67,8 @@ In the images below, we will view the resulting meshes using [Surfice](https://w
 3. You can choose to fill bubbles (`-b 1`) or retain bubbles (`-b 0`). Filling holes will create solid objects if you print them. If you look at the cut-away views below you will notice that this option determines whether the ventricles inside the brain and the interior sphere exist in the mesh file.
 
 ```
-./nii2mesh -l 0 -b 1 bet.nii.gz b1.gii
-./nii2mesh -l 0 -b 0 bet.nii.gz b0.gii
+./nii2mesh -l 0 -b 1 bet.nii.gz b1.ply
+./nii2mesh -l 0 -b 0 bet.nii.gz b0.ply
 ```
 
 ![Influence of b 0 vs b 1](b01.jpg)
@@ -76,8 +76,8 @@ In the images below, we will view the resulting meshes using [Surfice](https://w
 4. You can choose an isosurface value. This is the voxel brightness used to distinguish air from tissue. If you click on the voxel data with MRIcroGL, you will note that the brightness of the selected voxel location is shown in the title bar, allowing you to estimate a good boundary. The image below shows the difference between `-i 88` and `-i 128` for our example image. If you do not specify a value, the program will default to the middle intensity between the brightest and darkest value.
 
 ```
-./nii2mesh -i 88 bet.nii.gz i88.gii
-./nii2mesh -i 128 bet.nii.gz i128.gii
+./nii2mesh -i 88 bet.nii.gz i88.ply
+./nii2mesh -i 128 bet.nii.gz i128.ply
 ```
 
 ![Influence of i 88 vs i 128](i88i128.jpg)
@@ -85,30 +85,30 @@ In the images below, we will view the resulting meshes using [Surfice](https://w
 5. The `-s` option allows you to specify the number of iterations for the [smoothing of your mesh](https://doi.org/10.1111/1467-8659.00334). Unlike the `p`re-smooth, the `s`mooth is applied after the voxels are converted into a triangular mesh. This effect is much more subtle than the pre-smooth. This option is best suited for low resolution, block images. It is worth noting that the reduction factor also will tend to smooth images, attenuating small variations. Therefore, to illustrate the effect we are turning off both the pre-smoothing and the mesh reduction.
 
 ```
-./nii2mesh -r 1 -p 0 -s 100 bet.nii.gz s100.gii
-./nii2mesh -r 1 -p 0 -s 0 bet.nii.gz s0.gii
+./nii2mesh -r 1 -p 0 -s 100 bet.nii.gz s100.ply
+./nii2mesh -r 1 -p 0 -s 0 bet.nii.gz s0.ply
 ```
 
 ![Influence of s 0 vs s 100](s0s100.jpg)
 
-6. The reduction factor allows you simplify the mesh, resulting in a much smaller file size and faster renderng on slow hardware. This stage uses [Sven Forstmann's](https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification) implementation which is [adaptive](http://www.alecjacobson.com/weblog/?p=4444), using smaller triangles in regions of curvature and large triangles in regions flat regions. Choosing a value of `-r 0.15` will eliminate 85% of the triangles. Notice how similar the top row appears, while the bottom row illustrates a dramatic reduction in complexity.
+6. The reduction factor allows you to simplify the mesh, resulting in a much smaller file size and faster renderng on slow hardware. This stage uses [Sven Forstmann's](https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification) simplification method which is [adaptive](http://www.alecjacobson.com/weblog/?p=4444), using smaller triangles in regions of curvature and large triangles in regions flat regions. Choosing a value of `-r 0.15` will eliminate 85% of the triangles. Notice how similar the top row appears, while the bottom row illustrates a dramatic reduction in complexity.
 
 ```
-./nii2mesh -r 1 bet.nii.gz r100.gii
-./nii2mesh -r 0.15 bet.nii.gz r15.gii 
+./nii2mesh -r 1 bet.nii.gz r100.ply
+./nii2mesh -r 0.15 bet.nii.gz r15.ply 
 ```
 
 ![Influence of r 1.0 vs r 0.15](r100r15.jpg)
 
 ## Printing
 
-You can use this tool to generate
+You can use this tool to generate meshes suitable for 3D printing.
 
 1. If your MRI is in DICOM format, convert it to NIfTI with [dcm2niix](https://github.com/rordenlab/dcm2niix).
 2. Brain extract your image. You could use [BET](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET/UserGuide), [FAST](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FAST) or [HD-BET](https://github.com/MIC-DKFZ/HD-BET) for this step.
 3. Apply nii2mesh to generate a mesh you can print locally or using a service like [Shapeways](https://www.shapeways.com) or [Kraftwurx](http://www.kraftwurx.com)
 
-nii2mesh is a general mesh making method, which can turn be applied to any NIfTI image: a MRI or CT scan of any region of the body, a high-quality scan of any object including the animals of [DigiMorph](http://digimorph.org/index.phtml), [phenome10k](https://www.phenome10k.org), [MorphoSource](https://www.morphosource.org) or [other 3D databases](https://morphomuseum.com/links).
+nii2mesh is a general mesh making method, which can turn be applied to any NIfTI image: a MRI or CT scan of any region of the body, a high-quality scan of any object including the animals of [DigiMorph](http://digimorph.org/index.phtml), [phenome10k](https://www.phenome10k.org), [MorphoSource](https://www.morphosource.org), the [NIH 3D Print Exchange](https://3dprint.nih.gov) or [other 3D databases](https://morphomuseum.com/links).
 
 For brain specific printing, you may want to look at these tutorials.
 
