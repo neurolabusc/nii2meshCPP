@@ -706,8 +706,9 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 	}
 	if (isnan(isolevel))
 		isolevel = 0.5 * (mn + mx);
-	if ((isolevel < mn) || (isolevel > mx)) {
+	if ((isolevel <= mn) || (isolevel > mx)) {
 		isolevel = 0.5 * (mn + mx);
+		printf("Suggested isolevel out of range. Intensity range %g..%g, setting isolevel to %g\n", mn, mx, isolevel);
 	}
 	if (verbose)
 		printf("Intensity range %g..%g, isolevel %g\n", mn, mx, isolevel);
