@@ -46,7 +46,7 @@ Specifically, it is a T1 image that has been brain extracted (we have removed th
 
 In the images below, we will view the resulting meshes using [Surfice](https://www.nitrc.org/plugins/mwiki/index.php/surfice:MainPage). Another good tool for viewing meshes is [MeshLab](https://www.meshlab.net).
 
-1. You can choose to pre-smooth your data (`-p 1`) or not (`-p 0`) prior to making a mesh. This tends emulates a Gaussian blur, which tends to attenuate noise in the image. 
+1. You can choose to pre-smooth your data (`-p 1`) or not (`-p 0`) prior to making a mesh. This emulates a Gaussian blur with a narrow kernel, which tends to attenuate noise in the image. 
 
 ```
 ./nii2mesh -p 0 bet.nii.gz p0.ply
@@ -55,7 +55,7 @@ In the images below, we will view the resulting meshes using [Surfice](https://w
 
 ![Influence of p 0 vs p 1](p01.jpg)
 
-3. You can choose to only retain the largest connected object (`-l 1`) or keep all objects (`-l 0`). The image below shows that the balls and other small blobs do not appear when `-l 1` is selected.
+2. You can choose to only retain the largest connected object (`-l 1`) or keep all objects (`-l 0`). The image below shows that the balls and other small blobs do not appear when `-l 1` is selected.
 
 ```
 ./nii2mesh -l 0 bet.nii.gz l0.ply
@@ -91,7 +91,7 @@ In the images below, we will view the resulting meshes using [Surfice](https://w
 
 ![Influence of s 0 vs s 100](s0s100.jpg)
 
-6. The reduction factor allows you to simplify the mesh, resulting in a much smaller file size and faster renderng on slow hardware. This stage uses [Sven Forstmann's](https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification) simplification method which is [adaptive](http://www.alecjacobson.com/weblog/?p=4444), using smaller triangles in regions of curvature and large triangles in regions flat regions. Choosing a value of `-r 0.15` will eliminate 85% of the triangles. Notice how similar the top row appears, while the bottom row illustrates a dramatic reduction in complexity.
+6. The reduction factor allows you to simplify the mesh, resulting in a much smaller file size and faster renderng on slow hardware. This stage uses [Sven Forstmann's](https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification) simplification method which is [adaptive](http://www.alecjacobson.com/weblog/?p=4444), using smaller triangles in regions of curvature and large triangles in flat regions. Choosing a value of `-r 0.15` will eliminate 85% of the triangles. Notice how similar the top row appears, while the bottom row illustrates a dramatic reduction in complexity.
 
 ```
 ./nii2mesh -r 1 bet.nii.gz r100.ply
@@ -108,7 +108,7 @@ You can use this tool to generate meshes suitable for 3D printing.
 2. Brain extract your image. You could use [BET](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET/UserGuide), [FAST](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FAST) or [HD-BET](https://github.com/MIC-DKFZ/HD-BET) for this step.
 3. Apply nii2mesh to generate a mesh you can print locally or using a service like [Shapeways](https://www.shapeways.com) or [Kraftwurx](http://www.kraftwurx.com)
 
-nii2mesh is a general mesh making method, which can turn be applied to any NIfTI image: a MRI or CT scan of any region of the body, a high-quality scan of any object including the animals of [DigiMorph](http://digimorph.org/index.phtml), [phenome10k](https://www.phenome10k.org), [MorphoSource](https://www.morphosource.org), the [NIH 3D Print Exchange](https://3dprint.nih.gov) or [other 3D databases](https://morphomuseum.com/links).
+nii2mesh is a general mesh making method, which can be applied to any NIfTI image: a MRI or CT scan of any region of the body, a high-quality scan of any object including the animals of [DigiMorph](http://digimorph.org/index.phtml), [phenome10k](https://www.phenome10k.org), [MorphoSource](https://www.morphosource.org), the [NIH 3D Print Exchange](https://3dprint.nih.gov) or [other 3D databases](https://morphomuseum.com/links).
 
 For brain specific printing, you may want to look at these tutorials.
 
