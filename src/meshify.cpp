@@ -492,20 +492,18 @@ int unify_vertices(vec3d **inpt, vec3i *tris, int ntri, bool verbose) {
 	}
 	qsort(fltidx, npt, sizeof(struct TFltIdx), cmpDx); //sort based on distance
 	int nnew = 0; //number of unique vertices
-	double tol = 0.00001f; //tolerance: accept two vertices as identical if they are nearer
+	double tol = 0.00001; //tolerance: accept two vertices as identical if they are nearer
 	for (int i=0;i<npt;i++) {
 		if (old2new[fltidx[i].oldIdx] >= 0)
 			continue; //already assigned
-		float dx0 = fltidx[i].dx0;
+		double dx0 = fltidx[i].dx0;
 		vec3d pt0 = pts[fltidx[i].oldIdx];
 		int j = i;
-		while ((fltidx[j].dx0 - dx0) < tol) {
+		while ((j < npt) and ((fltidx[j].dx0 - dx0) < tol)) {
 			if (dx(pt0, pts[fltidx[j].oldIdx]) < tol) {
-				//fltidx[j].newIdx = nnew;
 				old2new[fltidx[j].oldIdx] = nnew;
 			}
 			j++;
-			if (j >= npt) break;
 		}
 		nnew++;
 	}
@@ -642,13 +640,14 @@ void dilate(float * img, size_t dim[3], bool is26) {
 	memset(mask, 0, nvox * sizeof(uint8_t));
 	int numk = 6;
 	if (is26)
-	numk = 26;
+		numk = 26;
 	int32_t *k = (int32_t *)malloc(numk * sizeof(int32_t)); //queue with untested seed
 	if (is26) {
 		int j = 0;
 		for (int z = -1; z <= 1; z++)
 			for (int y = -1; y <= 1; y++)
 				for (int x = -1; x <= 1; x++) {
+					if ((x == 0) && (y == 0) && (z == 0)) continue;
 					k[j] = x + (y * nx) + (z * nx * ny);
 					j++;
 				} //for x
@@ -706,6 +705,10 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 	}
 	if (isnan(isolevel))
 		isolevel = 0.5 * (mn + mx);
+	if (mn == mx) {
+		printf("Error: No variability in image intensity.\n");
+		return EXIT_FAILURE;
+	}
 	if ((isolevel <= mn) || (isolevel > mx)) {
 		isolevel = 0.5 * (mn + mx);
 		printf("Suggested isolevel out of range. Intensity range %g..%g, setting isolevel to %g\n", mn, mx, isolevel);
@@ -746,7 +749,7 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 		for (int y=0;y<NY;y++)
 			for (int x=0;x<NX;x++) {
 				if ((x == 0) || (y == 0) || (z == 0) || (x == (NX-1)) || (y == (NY-1)) || (z == (NZ-1)) )
-					img[vx] = MIN(edgeMax, img[vx+x]);
+					img[vx] = MIN(edgeMax, img[vx]);
 				vx++;
 			}
 	// Polygonise the grid
@@ -816,6 +819,7 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 		j++;
 	}
 	npt = unify_vertices(&pts, tris, ntri, verbose);
+	if (npt < 3) return EXIT_FAILURE;
 	ntri = remove_degenerate_triangles(pts, &tris, ntri, verbose);
 	*t = tris;
 	*p = pts;
