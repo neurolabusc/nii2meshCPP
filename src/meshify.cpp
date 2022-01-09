@@ -13,6 +13,9 @@
 #include "base64.h" //required for GIfTI
 #include "nifti1.h"
 #include "bwlabel.h"
+#ifdef USE_RADIX
+#include "radixsort.h"
+#endif
 
 typedef struct {
 	vec3d p[8];
@@ -466,48 +469,89 @@ int triTable[256][16] =
 	return(nvert);
 }
 
-struct TFltIdx{
-	double dx0; //distance from pt 0
-	int oldIdx;
-};
+#ifdef USE_RADIX
+	//use QSORT instead of RADIX sorting
 
-int cmpDx(const void *a, const void *b) {
-	if (((struct TFltIdx *)a)->dx0 > ((struct TFltIdx *)b)->dx0)
-		return 1;
-	else
-		return -1;
-}
+	//#define flt double
+	#define flt float
+
+	struct TFltIdx{
+		flt dx0; //distance from pt 0
+		int oldIdx;
+	};
+
+	int cmpDx(const void *a, const void *b) {
+		if (((struct TFltIdx *)a)->dx0 > ((struct TFltIdx *)b)->dx0)
+			return 1;
+		else if (((struct TFltIdx *)a)->dx0 < ((struct TFltIdx *)b)->dx0)
+			return -1;
+		return 0;
+	}
+#endif
 
 int unify_vertices(vec3d **inpt, vec3i *tris, int ntri, bool verbose) {
-	//reduces the number of vertices, number of faces unchanged
+	//"vertex welding": reduces the number of vertices, number of faces unchanged
 	vec3d *pts = *inpt;
 	int npt = ntri * 3;
-	TFltIdx *fltidx = (TFltIdx *)malloc(npt * sizeof(TFltIdx));
 	int *old2new = (int *)malloc(npt * sizeof(int));
 	vec3d pt0 = pts[0];
-	for (int i=0;i<npt;i++) {
-			fltidx[i].oldIdx = i;
-			fltidx[i].dx0 = dx(pt0, pts[i]);
+	#ifdef USE_RADIX
+		float* dx_in = (float*)malloc(npt*sizeof(float));
+		float* dx_out = (float*)malloc(npt*sizeof(float));
+		uint32_t* idx_in = (uint32_t*)malloc(npt*sizeof(uint32_t));
+		uint32_t* idx_out = (uint32_t*)malloc(npt*sizeof(uint32_t));
+		for (int i = 0; i < npt; i++) {
+			dx_in[i] = dx(pt0, pts[i]);
+			idx_in[i] = i;
 			old2new[i] = -1;//not yet set
-	}
-	qsort(fltidx, npt, sizeof(struct TFltIdx), cmpDx); //sort based on distance
-	int nnew = 0; //number of unique vertices
-	double tol = 0.00001; //tolerance: accept two vertices as identical if they are nearer
-	for (int i=0;i<npt;i++) {
-		if (old2new[fltidx[i].oldIdx] >= 0)
-			continue; //already assigned
-		double dx0 = fltidx[i].dx0;
-		vec3d pt0 = pts[fltidx[i].oldIdx];
-		int j = i;
-		while ((j < npt) and ((fltidx[j].dx0 - dx0) < tol)) {
-			if (dx(pt0, pts[fltidx[j].oldIdx]) < tol) {
-				old2new[fltidx[j].oldIdx] = nnew;
-			}
-			j++;
 		}
-		nnew++;
-	}
-	free(fltidx);
+		uint32_t ret = radix11sort_f32(dx_in, dx_out, idx_in, idx_out, npt);
+		free(dx_in);
+		free(idx_in);
+		int nnew = 0; //number of unique vertices
+		flt tol = 0.00001; //tolerance: accept two vertices as identical if they are nearer
+		for (int i=0;i<npt;i++) {
+			if (old2new[idx_out[i]] >= 0)
+				continue; //already assigned
+			flt dx0 = dx_out[i];
+			vec3d pt0 = pts[idx_out[i]];
+			int j = i;
+			while ((j < npt) and ((dx_out[j] - dx0) < tol)) {
+				if (dx(pt0, pts[idx_out[j]]) < tol) {
+					old2new[idx_out[j]] = nnew;
+				}
+				j++;
+			}
+			nnew++;
+		}
+		free(dx_out);
+		free(idx_out);
+	#else
+		TFltIdx *fltidx = (TFltIdx *)malloc(npt * sizeof(TFltIdx));
+		for (int i=0;i<npt;i++) {
+				fltidx[i].oldIdx = i;
+				fltidx[i].dx0 = dx(pt0, pts[i]);
+				old2new[i] = -1;//not yet set
+		}
+		qsort(fltidx, npt, sizeof(struct TFltIdx), cmpDx); //sort based on distance
+		int nnew = 0; //number of unique vertices
+		flt tol = 0.00001; //tolerance: accept two vertices as identical if they are nearer
+		for (int i=0;i<npt;i++) {
+			if (old2new[fltidx[i].oldIdx] >= 0)
+				continue; //already assigned
+			flt dx0 = fltidx[i].dx0;
+			vec3d pt0 = pts[fltidx[i].oldIdx];
+			int j = i;
+			while ((j < npt) and ((fltidx[j].dx0 - dx0) < tol)) {
+				if (dx(pt0, pts[fltidx[j].oldIdx]) < tol) {
+					old2new[fltidx[j].oldIdx] = nnew;
+				}
+				j++;
+			}
+			nnew++;
+		}
+		free(fltidx);
+	#endif
 	if (npt == nnew) {
 		if (verbose)
 			printf("Unify vertices found no shared vertices\n");
@@ -678,6 +722,17 @@ void dilate(float * img, size_t dim[3], bool is26) {
 	free(k);
 }
 
+#ifdef USE_TIMERS
+double clockMsec() { //return milliseconds since midnight
+	struct timespec _t;
+	clock_gettime(CLOCK_MONOTONIC, &_t);
+	return _t.tv_sec*1000.0 + (_t.tv_nsec/1.0e6);
+}
+
+long timediff(double startTimeMsec, double endTimeMsec) {
+	return round(endTimeMsec - startTimeMsec);
+}
+#endif
 
 int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d **p, int *nt, int *np, int preSmooth, bool onlyLargest, bool fillBubbles, bool verbose) {
 // img: input volume
@@ -691,11 +746,17 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 	int NX = hdr->dim[1];
 	int NY = hdr->dim[2];
 	int NZ = hdr->dim[3];
+	#ifdef USE_TIMERS
+		double startTime = clockMsec();
+	#endif
 	if (preSmooth) {
 		if (verbose)
 			printf("Pre-smooth: blurring voxel intensity.\n");
 		quick_smooth(img, NX, NY, NZ);
 	}
+	#ifdef USE_TIMERS
+		printf("pre-smooth: %ld ms\n", timediff(startTime, clockMsec()));
+	#endif
 	int nvox = NX*NY*NZ;
 	float mx = img[0];
 	float mn = mx;
@@ -718,6 +779,9 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 	int NXY = NX * NY;
 	//fill
 	if ((onlyLargest) || (fillBubbles)) {
+		#ifdef USE_TIMERS
+			startTime = clockMsec();
+		#endif
 		float* mask = (float *) malloc(nvox * sizeof(float));
 		size_t dim[3] = {NX, NY, NZ};
 		memset(mask, 0, nvox * sizeof(float));
@@ -741,6 +805,9 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 				printf("Preserving largest cluster of voxels\n");
 		}
 		free(mask);
+		#ifdef USE_TIMERS
+			printf("clustering: %ld ms\n", timediff(startTime, clockMsec()));
+		#endif
 	}
 	//edge darken
 	float edgeMax = 0.75 * (mn + isolevel);
@@ -753,6 +820,9 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 				vx++;
 			}
 	// Polygonise the grid
+	#ifdef USE_TIMERS
+		startTime = clockMsec();
+	#endif
 	GRIDCELL grid;
 	int ptsCapacity = 65536;
 	vec3d *pts = (vec3d *) malloc(ptsCapacity * sizeof(vec3d));
@@ -818,9 +888,20 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 		tris[i].z = j;
 		j++;
 	}
+	#ifdef USE_TIMERS
+		printf("marching cubes: %ld ms\n", timediff(startTime, clockMsec()));
+		startTime = clockMsec();
+	#endif
 	npt = unify_vertices(&pts, tris, ntri, verbose);
+	#ifdef USE_TIMERS
+		printf("vertex welding: %ld ms\n", timediff(startTime, clockMsec()));
+		startTime = clockMsec();
+	#endif
 	if (npt < 3) return EXIT_FAILURE;
 	ntri = remove_degenerate_triangles(pts, &tris, ntri, verbose);
+	#ifdef USE_TIMERS
+		printf("remove degenerates: %ld ms\n", timediff(startTime, clockMsec()));
+	#endif
 	*t = tris;
 	*p = pts;
 	*nt = ntri;

@@ -139,6 +139,9 @@ int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction,
 	if (meshify(img, &hdr, isolevel, &tris, &pts, &ntri, &npt, preSmooth, onlyLargest, fillBubbles, verbose) != EXIT_SUCCESS)
 		return EXIT_FAILURE;
 	apply_sform(tris, pts, ntri, npt, hdr.srow_x, hdr.srow_y, hdr.srow_z);
+	#ifdef USE_TIMERS
+		double startTime = clockMsec();
+	#endif
 	if ((postSmooth > 0) || (reduceFraction < 1.0)) {
 		Simplify::load_raw(pts, tris, npt, ntri);
 		free(tris);
@@ -149,7 +152,7 @@ int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction,
 			Simplify::laplacianHC_smooth(0.5, 0.1, postSmooth);
 		}
 		if (reduceFraction < 1.0) {
-			double agressiveness = 5.0;
+			double agressiveness = 7.0; //7 = default for Simplify.h
 			int startSize = Simplify::triangles.size();
 			int target_count = round((float)Simplify::triangles.size() * reduceFraction);
 			Simplify::simplify_mesh(target_count, agressiveness, verbose);
@@ -159,7 +162,14 @@ int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction,
 		}
 		Simplify::get_raw(&pts, &tris, &npt, &ntri);
 	}
+	#ifdef USE_TIMERS
+		printf("simplify: %ld ms\n", timediff(startTime, clockMsec()));
+		startTime = clockMsec();
+	#endif
 	save_mesh(outnm, tris, pts, ntri, npt);
+	#ifdef USE_TIMERS
+		printf("save to disk: %ld ms\n", timediff(startTime, clockMsec()));
+	#endif
 	free(tris);
 	free(pts);
 	return EXIT_SUCCESS;
@@ -215,11 +225,18 @@ int main(int argc,char **argv) {
 			verbose = atoi(argv[i+1]);
 	}
 	nifti_1_header hdr;
+	#ifdef USE_TIMERS
+		double startTime = clockMsec();
+	#endif
 	float * img = load_nii(argv[argc-2], &hdr);
+	#ifdef USE_TIMERS
+		printf("load from disk: %ld ms\n", timediff(startTime, clockMsec()));
+	#endif
 	if (img == NULL)
 		exit(EXIT_FAILURE);
 	int ret = EXIT_SUCCESS;
 	if (isAtlas) {
+		onlyLargest = false;
 		if ((hdr.cal_min < 0.0) || (hdr.cal_max < 1.0) || ((hdr.cal_max - hdr.cal_min) < 1.0)) {
 			printf("intensity range not consistent with an indexed atlas %g..%g\n", hdr.cal_min, hdr.cal_max);
 			exit(EXIT_FAILURE);
