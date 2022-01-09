@@ -1,5 +1,5 @@
-// g++ -O1 -g -fsanitize=address -fno-omit-frame-pointer -DHAVE_ZLIB nii2mesh.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
-// g++ -O3 -DHAVE_ZLIB nii2mesh.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
+// g++ -O1 -DUSE_RADIX -g -fsanitize=address -fno-omit-frame-pointer -DHAVE_ZLIB nii2mesh.cpp radixsort.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
+// g++ -O3 -DHAVE_ZLIB -DUSE_TIMERS -DUSE_RADIX nii2mesh.cpp radixsort.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
 
 #include <stdio.h>
 #include <math.h>

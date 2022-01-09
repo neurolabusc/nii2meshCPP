@@ -469,7 +469,7 @@ int triTable[256][16] =
 	return(nvert);
 }
 
-#ifdef USE_RADIX
+#ifndef USE_RADIX
 	//use QSORT instead of RADIX sorting
 
 	//#define flt double
@@ -509,11 +509,11 @@ int unify_vertices(vec3d **inpt, vec3i *tris, int ntri, bool verbose) {
 		free(dx_in);
 		free(idx_in);
 		int nnew = 0; //number of unique vertices
-		flt tol = 0.00001; //tolerance: accept two vertices as identical if they are nearer
+		float tol = 0.00001; //tolerance: accept two vertices as identical if they are nearer
 		for (int i=0;i<npt;i++) {
 			if (old2new[idx_out[i]] >= 0)
 				continue; //already assigned
-			flt dx0 = dx_out[i];
+			float dx0 = dx_out[i];
 			vec3d pt0 = pts[idx_out[i]];
 			int j = i;
 			while ((j < npt) and ((dx_out[j] - dx0) < tol)) {
