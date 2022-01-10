@@ -32,3 +32,5 @@ base64.cpp was written by Jouni Malinen and is distributed under the BSD license
 
 simplify.h was written by Sven Forstmann and distributed under the MIT license. https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification
 
+The software can be optionally compiled to use the radixsort files written by Cameron Hart (2014) using the zlib license. https://github.com/bitshifter/radixsort
+

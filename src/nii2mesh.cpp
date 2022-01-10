@@ -1,5 +1,7 @@
-// g++ -O1 -DUSE_RADIX -g -fsanitize=address -fno-omit-frame-pointer -DHAVE_ZLIB nii2mesh.cpp radixsort.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
+// g++ -O1 -DHAVE_ZLIB -DUSE_RADIX -g -fsanitize=address -fno-omit-frame-pointer nii2mesh.cpp radixsort.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
 // g++ -O3 -DHAVE_ZLIB -DUSE_TIMERS -DUSE_RADIX nii2mesh.cpp radixsort.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
+// g++ -O3 nii2mesh.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh
+// g++ -O3 -DHAVE_ZLIB nii2mesh.cpp meshify.cpp base64.cpp bwlabel.cpp -o nii2mesh -lz
 
 #include <stdio.h>
 #include <math.h>
@@ -64,7 +66,7 @@ float * load_nii(const char *fnm, nifti_1_header * hdr) {
 		return NULL;
 	}
 	if (fwd != sig) {
-		printf("Demo only reads uncompressed NIfTI (solution: 'gzip -d \"%s\"')\n", hdrnm);
+		printf("Only compiled to read uncompressed NIfTI (solution: 'gzip -d \"%s\"')\n", hdrnm);
 		return NULL;
 	}
 	if ((hdr->datatype != DT_UINT8) && (hdr->datatype != DT_UINT16) && (hdr->datatype != DT_INT16) && (hdr->datatype != DT_FLOAT32)) {
@@ -80,6 +82,7 @@ float * load_nii(const char *fnm, nifti_1_header * hdr) {
 	if (hdr->datatype == DT_FLOAT32)
 		bpp = 4;
 	void * imgRaw = (void *) malloc(nvox*bpp);
+	#ifdef HAVE_ZLIB
 	if (isGz) {
 		gzFile fgz = gzopen(hdrnm, "r");
 		if (! fgz)
@@ -95,7 +98,9 @@ float * load_nii(const char *fnm, nifti_1_header * hdr) {
 		if (bytes_read != (nvox*bpp))
 			return NULL;
 		gzclose(fgz);
-	} else {
+	} else
+	#endif
+	{
 		FILE *fp = fopen(imgnm,"rb");
 		if (fp == NULL)
 			return NULL;
@@ -132,7 +137,7 @@ float * load_nii(const char *fnm, nifti_1_header * hdr) {
 	return img32;
 }
 
-int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction, int preSmooth, bool onlyLargest, bool fillBubbles, int postSmooth, bool verbose, char * outnm) {
+int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction, int preSmooth, bool onlyLargest, bool fillBubbles, int postSmooth, bool verbose, char * outnm, int quality) {
 	vec3d *pts = NULL;
 	vec3i *tris = NULL;
 	int ntri, npt;
@@ -153,6 +158,10 @@ int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction,
 		}
 		if (reduceFraction < 1.0) {
 			double agressiveness = 7.0; //7 = default for Simplify.h
+			if (quality == 0) //fast
+				agressiveness = 8.0;
+			if (quality == 2) //best
+				agressiveness = 5.0;
 			int startSize = Simplify::triangles.size();
 			int target_count = round((float)Simplify::triangles.size() * reduceFraction);
 			Simplify::simplify_mesh(target_count, agressiveness, verbose);
@@ -166,7 +175,7 @@ int nii2 (nifti_1_header hdr, float * img, float isolevel, float reduceFraction,
 		printf("simplify: %ld ms\n", timediff(startTime, clockMsec()));
 		startTime = clockMsec();
 	#endif
-	save_mesh(outnm, tris, pts, ntri, npt);
+	save_mesh(outnm, tris, pts, ntri, npt, (quality > 0));
 	#ifdef USE_TIMERS
 		printf("save to disk: %ld ms\n", timediff(startTime, clockMsec()));
 	#endif
@@ -182,6 +191,7 @@ int main(int argc,char **argv) {
 	bool onlyLargest = true;
 	bool fillBubbles = false;
 	int postSmooth = 0;
+	int quality = 1;
 	bool verbose = false;
 	bool isAtlas = false;
 	// Check the command line, minimal is name of input and output files
@@ -195,6 +205,7 @@ int main(int argc,char **argv) {
 		printf("    -l v    only keep largest cluster (0=all, 1=largest, default %d)\n", onlyLargest);
 		printf("    -p v    pre-smoothing (0=skip, 1=smooth, default %d)\n", preSmooth);
 		printf("    -r v    reduction factor (default %g)\n", reduceFraction);
+		printf("    -q v    quality (0=fast, 1= balanced, 2=best, default %d)\n", quality);
 		printf("    -s v    post-smoothing iterations (default %d)\n", postSmooth);
 		printf("    -v v    verbose (0=silent, 1=verbose, default %d)\n", verbose);
 		printf("mesh extension sets format (.gii, .mz3, .obj, .ply, .pial, .stl, .vtk)\n");
@@ -217,6 +228,8 @@ int main(int argc,char **argv) {
 			onlyLargest = atoi(argv[i+1]);
 		if (strcmp(argv[i],"-p") == 0)
 			preSmooth = atoi(argv[i+1]);
+		if (strcmp(argv[i],"-q") == 0)
+			quality = atoi(argv[i+1]);
 		if (strcmp(argv[i],"-s") == 0)
 			postSmooth = atoi(argv[i+1]);
 		if (strcmp(argv[i],"-r") == 0)
@@ -266,7 +279,7 @@ int main(int argc,char **argv) {
 				continue;
 			}
 			snprintf(outnm,sizeof(outnm),"%s%d%s", basenm, i, ext);
-			int reti = nii2(hdr, imgbinary, 0.5, reduceFraction, preSmooth, onlyLargest, fillBubbles, postSmooth, verbose, outnm);
+			int reti = nii2(hdr, imgbinary, 0.5, reduceFraction, preSmooth, onlyLargest, fillBubbles, postSmooth, verbose, outnm, quality);
 			if (reti == EXIT_SUCCESS)
 				nOK ++;
 		}
@@ -276,8 +289,7 @@ int main(int argc,char **argv) {
 			ret = EXIT_FAILURE;
 		free(imgbinary);
 	} else
-		ret = nii2(hdr, img, isolevel, reduceFraction, preSmooth, onlyLargest, fillBubbles, postSmooth, verbose, argv[argc-1]);
-
+		ret = nii2(hdr, img, isolevel, reduceFraction, preSmooth, onlyLargest, fillBubbles, postSmooth, verbose, argv[argc-1], quality);
 	//argv[argc-1]
 	free(img);
 	exit(ret);

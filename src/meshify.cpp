@@ -33,11 +33,16 @@ double dx(vec3d p0, vec3d p1) {
 	return sqrt( sqr(p0.x - p1.x) + sqr(p0.y - p1.y) + sqr(p0.z - p1.z));
 }
 
+
+inline vec3d setVec3d(double x, double y,double z) {
+	return (vec3d){.x = x, .y = y, .z = z}; 
+}
+
 /*-------------------------------------------------------------------------
 	Return the point between two points in the same ratio as
 	isolevel is between valp1 and valp2
 */
-vec3d VertexInterp(double isolevel,vec3d p1,vec3d p2,double valp1,double valp2)
+vec3d VertexInterp(double isolevel, vec3d p1,vec3d p2,double valp1,double valp2)
 {
 	double mu;
 	vec3d p;
@@ -831,38 +836,22 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 		for (int y=0;y<NY-1;y++) {
 			int zy = (z * NXY) + (y * NX);
 			for (int x=0;x<NX-1;x++) {
-				grid.p[0].x = x;
-				grid.p[0].y = y;
-				grid.p[0].z = z;
 				grid.val[0] = img[zy+x];
-				grid.p[1].x = x+1;
-				grid.p[1].y = y;
-				grid.p[1].z = z; 
 				grid.val[1] = img[zy+x+1];
-				grid.p[2].x = x+1;
-				grid.p[2].y = y+1;
-				grid.p[2].z = z;
 				grid.val[2] = img[zy+x+1+NX];
-				grid.p[3].x = x;
-				grid.p[3].y = y+1;
-				grid.p[3].z = z;
 				grid.val[3] = img[zy+x+NX];
-				grid.p[4].x = x;
-				grid.p[4].y = y;
-				grid.p[4].z = z+1;
 				grid.val[4] = img[zy+x+NXY];
-				grid.p[5].x = x+1;
-				grid.p[5].y = y;
-				grid.p[5].z = z+1;
 				grid.val[5] = img[zy+x+1+NXY];
-				grid.p[6].x = x+1;
-				grid.p[6].y = y+1;
-				grid.p[6].z = z+1;
 				grid.val[6] = img[zy+x+1+NX+NXY];
-				grid.p[7].x = x;
-				grid.p[7].y = y+1;
-				grid.p[7].z = z+1;
 				grid.val[7] = img[zy+x+NX+NXY];
+				grid.p[0] = setVec3d(x  ,y  ,z  );
+				grid.p[1] = setVec3d(x+1,y  ,z  );
+				grid.p[2] = setVec3d(x+1,y+1,z  );
+				grid.p[3] = setVec3d(x  ,y+1,z  );
+				grid.p[4] = setVec3d(x  ,y  ,z+1);
+				grid.p[5] = setVec3d(x+1,y  ,z+1);
+				grid.p[6] = setVec3d(x+1,y+1,z+1);
+				grid.p[7] = setVec3d(x  ,y+1,z+1);
 				if ((npt + 30) > ptsCapacity) {
 					ptsCapacity = round (ptsCapacity * 1.5);
 					pts = (vec3d *)realloc(pts,ptsCapacity*sizeof(vec3d));
@@ -976,7 +965,7 @@ int save_freesurfer(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt)
 	return EXIT_SUCCESS;
 }
 
-int save_mz3(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt) {
+int save_mz3(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt, bool isGz) {
 //https://github.com/neurolabusc/surf-ice/tree/master/mz3
 	struct __attribute__((__packed__)) mz3hdr {
 		uint16_t SIGNATURE, ATTR;
@@ -990,48 +979,58 @@ int save_mz3(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt) {
 	h.NSKIP = 0;
 	if (! &littleEndianPlatform)
 		swap_4bytes(3, &h.NFACE);
-	#ifdef HAVE_ZLIB 
-	gzFile fgz = gzopen(fnm, "w");
-	if (! fgz)
-		return EXIT_FAILURE;
-	gzwrite(fgz, &h, sizeof(struct mz3hdr));
-	#else
-	FILE *fp = fopen(fnm,"wb");
-	if (fp == NULL)
-		return EXIT_FAILURE;
-	fwrite(&h, sizeof(struct mz3hdr), 1, fp);
+	FILE *fp;
+	#ifdef HAVE_ZLIB
+	gzFile fgz;
+	if (isGz) {
+		fgz = gzopen(fnm, "w");
+		if (! fgz)
+			return EXIT_FAILURE;
+		gzwrite(fgz, &h, sizeof(struct mz3hdr));
+	} else
 	#endif
+	{
+		fp = fopen(fnm,"wb");
+		if (fp == NULL)
+			return EXIT_FAILURE;
+		fwrite(&h, sizeof(struct mz3hdr), 1, fp);
+	}
 	if (! &littleEndianPlatform) {
 		vec3i *trisSwap = (vec3i *) malloc(ntri * sizeof(vec3i));
 		for (int i = 0; i < ntri; i++)
 			trisSwap[i] = tris[i];
 		swap_4bytes(ntri * 3, trisSwap);
-		#ifdef HAVE_ZLIB 
-		gzwrite(fgz, trisSwap, ntri * sizeof(vec3i));
+		#ifdef HAVE_ZLIB
+		if (isGz)
+			gzwrite(fgz, trisSwap, ntri * sizeof(vec3i));
+		else
 		#else
-		fwrite(trisSwap, ntri * sizeof(vec3i), 1, fp);
+			fwrite(trisSwap, ntri * sizeof(vec3i), 1, fp);
 		#endif
 		free(trisSwap);
 	} else {
 		#ifdef HAVE_ZLIB 
-		gzwrite(fgz, tris, ntri * sizeof(vec3i));
-		#else
-		fwrite(tris, ntri * sizeof(vec3i), 1, fp);
+		if (isGz)
+			gzwrite(fgz, tris, ntri * sizeof(vec3i));
+		else
 		#endif
+			fwrite(tris, ntri * sizeof(vec3i), 1, fp);
 	}
 	vec3s *pts32 = (vec3s *) malloc(npt * sizeof(vec3s));
 	for (int i = 0; i < npt; i++) //double->single precision
 		pts32[i] = vec3d2vec4s(pts[i]);
 	if (! &littleEndianPlatform)
 		swap_4bytes(npt * 3, pts32);
-	#ifdef HAVE_ZLIB 
-	gzwrite(fgz, pts32, npt * sizeof(vec3s));
-	gzclose(fgz);
-	#else
-	fwrite(pts32, npt * sizeof(vec3s), 1, fp);
-	fclose(fp);
+	#ifdef HAVE_ZLIB
+	if (isGz) {
+		gzwrite(fgz, pts32, npt * sizeof(vec3s));
+		gzclose(fgz);
+	} else
 	#endif
-
+	{
+		fwrite(pts32, npt * sizeof(vec3s), 1, fp);
+		fclose(fp);
+	}
 	free(pts32);
 	return EXIT_SUCCESS;
 }
@@ -1123,7 +1122,7 @@ int save_ply(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
 	return EXIT_SUCCESS;
 }
 
-int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
+int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt, bool isGz){
 	//https://www.nitrc.org/projects/gifti/
 	//https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c
 	typedef struct {
@@ -1144,11 +1143,12 @@ int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
 	fwrite(fc, strlen(fc), 1, fp);
 	fputs("               Dim1=\"3\"\n",fp);
 	fputs("               Dimensionality=\"2\"\n",fp);
-	#ifdef HAVE_ZLIB 
-	fputs("               Encoding=\"GZipBase64Binary\"\n" ,fp);
-	#else
-	fputs("               Encoding=\"Base64Binary\"\n" ,fp);
+	#ifdef HAVE_ZLIB
+	if (isGz)
+		fputs("               Encoding=\"GZipBase64Binary\"\n" ,fp);
+	else
 	#endif
+		fputs("               Encoding=\"Base64Binary\"\n" ,fp);
 	if (&littleEndianPlatform)
 		fputs("               Endian=\"LittleEndian\"\n",fp);
 	else
@@ -1160,18 +1160,20 @@ int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
 	fputs("      </MetaData>\n",fp);
 	fputs("      <Data>",fp);
 	size_t out_len;
-	#ifdef HAVE_ZLIB 
-	unsigned long srcLen = ntri * sizeof(vec3i);
-	unsigned long destLen = compressBound(srcLen);
-	unsigned char* ostream = (unsigned char*) malloc(destLen);
-	int res = compress(ostream, &destLen,(const unsigned char *) tris, srcLen); 
-	if (res != Z_OK)
-		printf("Compression error\n");
-	unsigned char * fcs = base64_encode(ostream, destLen, &out_len);
-	free(ostream);
-	#else
-	unsigned char * fcs = base64_encode((const unsigned char *) tris, ntri * sizeof(vec3i), &out_len);
+	unsigned char * fcs;
+	#ifdef HAVE_ZLIB
+	if (isGz) {
+		unsigned long srcLen = ntri * sizeof(vec3i);
+		unsigned long destLen = compressBound(srcLen);
+		unsigned char* ostream = (unsigned char*) malloc(destLen);
+		int res = compress(ostream, &destLen,(const unsigned char *) tris, srcLen); 
+		if (res != Z_OK)
+			printf("Compression error\n");
+		fcs = base64_encode(ostream, destLen, &out_len);
+		free(ostream);
+	} else
 	#endif
+		fcs = base64_encode((const unsigned char *) tris, ntri * sizeof(vec3i), &out_len);
 	fwrite(fcs, out_len, 1, fp);
 	free(fcs);
 	fputs("</Data>\n",fp);
@@ -1184,10 +1186,11 @@ int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
 	fputs("               Dim1=\"3\"\n",fp);
 	fputs("               Dimensionality=\"2\"\n",fp);
 	#ifdef HAVE_ZLIB
-	fputs("               Encoding=\"GZipBase64Binary\"\n" ,fp);
-	#else
-	fputs("               Encoding=\"Base64Binary\"\n" ,fp);
+	if (isGz)
+		fputs("               Encoding=\"GZipBase64Binary\"\n" ,fp);
+	else
 	#endif
+		fputs("               Encoding=\"Base64Binary\"\n" ,fp);
 	if (&littleEndianPlatform)
 		fputs("               Endian=\"LittleEndian\"\n",fp);
 	else
@@ -1206,18 +1209,20 @@ int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
 	vec3s *pts32 = (vec3s *) malloc(npt * sizeof(vec3s));
 	for (int i = 0; i < npt; i++)//double->single precision
 		pts32[i] = vec3d2vec4s(pts[i]);
-	#ifdef HAVE_ZLIB 
-	srcLen = npt * sizeof(vec3s);
-	destLen = compressBound(srcLen);
-	ostream = (unsigned char*) malloc(destLen);
-	res = compress(ostream, &destLen,(const unsigned char *) pts32, srcLen); 
-	if (res != Z_OK)
-		printf("Compression error\n");
-	unsigned char * vts = base64_encode(ostream, destLen, &out_len);
-	free(ostream);
-	#else
-	unsigned char * vts = base64_encode((const unsigned char *) pts32, npt * sizeof(vec3s), &out_len);
+	unsigned char * vts;
+	#ifdef HAVE_ZLIB
+	if (isGz) {
+		unsigned long srcLen = npt * sizeof(vec3s);
+		unsigned long destLen = compressBound(srcLen);
+		unsigned char* ostream = (unsigned char*) malloc(destLen);
+		int res = compress(ostream, &destLen,(const unsigned char *) pts32, srcLen); 
+		if (res != Z_OK)
+			printf("Compression error\n");
+		vts = base64_encode(ostream, destLen, &out_len);
+		free(ostream);
+	} else
 	#endif
+		vts = base64_encode((const unsigned char *) pts32, npt * sizeof(vec3s), &out_len);
 	free(pts32);
 	fwrite(vts, out_len, 1, fp);
 	free(vts);
@@ -1278,18 +1283,18 @@ void strip_ext(char *fname){
 	}
 }
 
-int save_mesh(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt){
+int save_mesh(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt, bool isGz){
 	char basenm[768], ext[768] = "";
 	strcpy(basenm, fnm);
 	strip_ext(basenm); // ~/file.nii -> ~/file
 	if (strlen(fnm) > strlen(basenm))
 		strcpy(ext, fnm + strlen(basenm));
 	if (strstr(ext, ".gii"))
-		return save_gii(fnm, tris, pts, ntri, npt);
+		return save_gii(fnm, tris, pts, ntri, npt, isGz);
 	else if ((strstr(ext, ".pial")) || (strstr(ext, ".inflated")))
 		return save_freesurfer(fnm, tris, pts, ntri, npt);
 	else if (strstr(ext, ".mz3"))
-		return save_mz3(fnm, tris, pts, ntri, npt);
+		return save_mz3(fnm, tris, pts, ntri, npt, isGz);
 	else if (strstr(ext, ".obj"))
 		return save_obj(fnm, tris, pts, ntri, npt);
 	else if (strstr(ext, ".ply"))
