@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 
 
 #define printfx(...) fprintf(stderr, __VA_ARGS__)
@@ -46,11 +47,12 @@
 #define MIN(A,B) ((A) > (B) ? (B) : (A))
 #endif
 
-void fill_tratab(uint32_t  *tt,     /* Translation table */
-                 /*uint32_t  ttn,*/     /* Size of translation table */
-                 uint32_t  *nabo,   /* Set of neighbours */
-                 uint32_t  nr_set)  /* Number of neighbours in nabo */
-{
+void fill_tratab(uint32_t  *tt, uint32_t  *nabo, uint32_t  nr_set)  {
+/*
+uint32_t  *tt,  Translation table 
+uint32_t  *nabo,   Set of neighbours 
+uint32_t  nr_set) Number of neighbours in nabo 
+*/
    int           i = 0, j = 0, cntr = 0;
    uint32_t  tn[9];
    uint32_t  ltn = UINT_MAX;
@@ -380,6 +382,7 @@ int bwlabel(float *img, int conn, size_t dim[3], bool onlyLargest, bool fillBubb
     if (img[i] != 0.0) bw[i] = 1;
   uint32_t  *tt = NULL;
   uint32_t ttn = do_initial_labelling(bw,dim,conn,il,&tt);
+  free(bw);
   int nl = translate_labels(il,dim,tt,ttn,l);
   free(il);
   free(tt);

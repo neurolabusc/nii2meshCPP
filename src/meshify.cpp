@@ -1,6 +1,3 @@
-//g++ -O3 example.cpp -o exam; ./exam bet8.img
-//g++ -O1 -g -fsanitize=address -fno-omit-frame-pointer example.cpp -o exam; ./exam bet8.img
-
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -18,8 +15,7 @@
 #endif
 
 typedef struct {
-	vec3d p[8];
-	vec3d n[8];
+	vec3d p000;
 	double val[8];
 } GRIDCELL;
 
@@ -46,12 +42,15 @@ vec3d VertexInterp(double isolevel, vec3d p1,vec3d p2,double valp1,double valp2)
 {
 	double mu;
 	vec3d p;
+	#ifdef MARCHING_CUBE_CONDITIONALS
+	//pipelined computation faster than branched conditionals?
 	if (ABS(isolevel-valp1) < 0.00001)
 		return(p1);
 	if (ABS(isolevel-valp2) < 0.00001)
 		return(p2);
 	if (ABS(valp1-valp2) < 0.00001)
-		return(p1);
+		return(p1); //<- in theory, avoids divide by zero, but isolevel crossing detected
+	#endif
 	mu = (isolevel - valp1) / (valp2 - valp1);
 	p.x = p1.x + mu * (p2.x - p1.x);
 	p.y = p1.y + mu * (p2.y - p1.y);
@@ -67,7 +66,7 @@ vec3d VertexInterp(double isolevel, vec3d p1,vec3d p2,double valp1,double valp2)
 	0 will be returned if the grid cell is either totally above
 	of totally below the isolevel.
 */
-int PolygoniseCube(GRIDCELL g,double iso,vec3d *tri)
+inline int PolygoniseCube(GRIDCELL g,double iso,vec3d *tri)
 {
 	int cubeindex;
 	vec3d vertlist[12];
@@ -432,35 +431,44 @@ int triTable[256][16] =
 	if (g.val[5] < iso) cubeindex |= 32;
 	if (g.val[6] < iso) cubeindex |= 64;
 	if (g.val[7] < iso) cubeindex |= 128;
-
 	/* Cube is entirely in/out of the surface */
 	if (edgeTable[cubeindex] == 0)
 		return(0);
+	vec3d p[8];
+	p[0] = setVec3d(g.p000.x  ,g.p000.y  ,g.p000.z  );
+	p[1] = setVec3d(g.p000.x+1,g.p000.y  ,g.p000.z  );
+	p[2] = setVec3d(g.p000.x+1,g.p000.y+1,g.p000.z  );
+	p[3] = setVec3d(g.p000.x  ,g.p000.y+1,g.p000.z  );
+	p[4] = setVec3d(g.p000.x  ,g.p000.y  ,g.p000.z+1);
+	p[5] = setVec3d(g.p000.x+1,g.p000.y  ,g.p000.z+1);
+	p[6] = setVec3d(g.p000.x+1,g.p000.y+1,g.p000.z+1);
+	p[7] = setVec3d(g.p000.x  ,g.p000.y+1,g.p000.z+1);
+
 	/* Find the vertices where the surface intersects the cube */
 	if (edgeTable[cubeindex] & 1)
-		vertlist[0] = VertexInterp(iso,g.p[0],g.p[1],g.val[0],g.val[1]);
+		vertlist[0] = VertexInterp(iso,p[0],p[1],g.val[0],g.val[1]);
 	if (edgeTable[cubeindex] & 2)
-		vertlist[1] = VertexInterp(iso,g.p[1],g.p[2],g.val[1],g.val[2]);
+		vertlist[1] = VertexInterp(iso,p[1],p[2],g.val[1],g.val[2]);
 	if (edgeTable[cubeindex] & 4)
-		vertlist[2] = VertexInterp(iso,g.p[2],g.p[3],g.val[2],g.val[3]);
+		vertlist[2] = VertexInterp(iso,p[2],p[3],g.val[2],g.val[3]);
 	if (edgeTable[cubeindex] & 8)
-		vertlist[3] = VertexInterp(iso,g.p[3],g.p[0],g.val[3],g.val[0]);
+		vertlist[3] = VertexInterp(iso,p[3],p[0],g.val[3],g.val[0]);
 	if (edgeTable[cubeindex] & 16)
-		vertlist[4] = VertexInterp(iso,g.p[4],g.p[5],g.val[4],g.val[5]);
+		vertlist[4] = VertexInterp(iso,p[4],p[5],g.val[4],g.val[5]);
 	if (edgeTable[cubeindex] & 32)
-		vertlist[5] = VertexInterp(iso,g.p[5],g.p[6],g.val[5],g.val[6]);
+		vertlist[5] = VertexInterp(iso,p[5],p[6],g.val[5],g.val[6]);
 	if (edgeTable[cubeindex] & 64)
-		vertlist[6] = VertexInterp(iso,g.p[6],g.p[7],g.val[6],g.val[7]);
+		vertlist[6] = VertexInterp(iso,p[6],p[7],g.val[6],g.val[7]);
 	if (edgeTable[cubeindex] & 128)
-		vertlist[7] = VertexInterp(iso,g.p[7],g.p[4],g.val[7],g.val[4]);
+		vertlist[7] = VertexInterp(iso,p[7],p[4],g.val[7],g.val[4]);
 	if (edgeTable[cubeindex] & 256)
-		vertlist[8] = VertexInterp(iso,g.p[0],g.p[4],g.val[0],g.val[4]);
+		vertlist[8] = VertexInterp(iso,p[0],p[4],g.val[0],g.val[4]);
 	if (edgeTable[cubeindex] & 512)
-		vertlist[9] = VertexInterp(iso,g.p[1],g.p[5],g.val[1],g.val[5]);
+		vertlist[9] = VertexInterp(iso,p[1],p[5],g.val[1],g.val[5]);
 	if (edgeTable[cubeindex] & 1024)
-		vertlist[10] = VertexInterp(iso,g.p[2],g.p[6],g.val[2],g.val[6]);
+		vertlist[10] = VertexInterp(iso,p[2],p[6],g.val[2],g.val[6]);
 	if (edgeTable[cubeindex] & 2048)
-		vertlist[11] = VertexInterp(iso,g.p[3],g.p[7],g.val[3],g.val[7]);
+		vertlist[11] = VertexInterp(iso,p[3],p[7],g.val[3],g.val[7]);
 	int nvert = 0;
 	/* Create the triangles */
 	for (int i=0;triTable[cubeindex][i]!=-1;i+=3) {
@@ -596,7 +604,7 @@ int remove_degenerate_triangles(vec3d *pts, vec3i **intris, int ntri, bool verbo
 		double lo = fmin(fmin(a, b), c);
 		double hi = fmax(fmax(a, b), c);
 		double mid = a+b+c-lo-hi;
-		isdegenerate[i] = (lo + mid <= hi);
+		isdegenerate[i] = (lo + mid) <= hi;
 		ndegenerate += isdegenerate[i];
 	}
 	if (ndegenerate == 0) {
@@ -619,6 +627,7 @@ int remove_degenerate_triangles(vec3d *pts, vec3i **intris, int ntri, bool verbo
 		tris[j] = oldtris[i];
 		j++;
 	}
+	free(oldtris);
 	free(isdegenerate);
 	return newtri;
 }
@@ -676,6 +685,7 @@ int quick_smooth(float * img, int nx, int ny, int nz) {
 		}
 	}
 	memcpy(img, tmp, nvox * sizeof(float)); //dst,src,n
+	free(tmp);
 	return EXIT_SUCCESS;
 }
 
@@ -727,7 +737,6 @@ void dilate(float * img, size_t dim[3], bool is26) {
 	free(k);
 }
 
-#ifdef USE_TIMERS
 double clockMsec() { //return milliseconds since midnight
 	struct timespec _t;
 	clock_gettime(CLOCK_MONOTONIC, &_t);
@@ -737,7 +746,6 @@ double clockMsec() { //return milliseconds since midnight
 long timediff(double startTimeMsec, double endTimeMsec) {
 	return round(endTimeMsec - startTimeMsec);
 }
-#endif
 
 int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d **p, int *nt, int *np, int preSmooth, bool onlyLargest, bool fillBubbles, bool verbose) {
 // img: input volume
@@ -751,17 +759,14 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 	int NX = hdr->dim[1];
 	int NY = hdr->dim[2];
 	int NZ = hdr->dim[3];
-	#ifdef USE_TIMERS
-		double startTime = clockMsec();
-	#endif
+	double startTime = clockMsec();
 	if (preSmooth) {
 		if (verbose)
 			printf("Pre-smooth: blurring voxel intensity.\n");
 		quick_smooth(img, NX, NY, NZ);
 	}
-	#ifdef USE_TIMERS
+	if (verbose)
 		printf("pre-smooth: %ld ms\n", timediff(startTime, clockMsec()));
-	#endif
 	int nvox = NX*NY*NZ;
 	float mx = img[0];
 	float mn = mx;
@@ -784,11 +789,9 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 	int NXY = NX * NY;
 	//fill
 	if ((onlyLargest) || (fillBubbles)) {
-		#ifdef USE_TIMERS
-			startTime = clockMsec();
-		#endif
+		startTime = clockMsec();
 		float* mask = (float *) malloc(nvox * sizeof(float));
-		size_t dim[3] = {NX, NY, NZ};
+		size_t dim[3] = {(size_t)NX, (size_t)NY, (size_t)NZ};
 		memset(mask, 0, nvox * sizeof(float));
 		for (int i=0;i<nvox;i++)
 			if (img[i] >= isolevel)
@@ -810,32 +813,49 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 				printf("Preserving largest cluster of voxels\n");
 		}
 		free(mask);
-		#ifdef USE_TIMERS
-			printf("clustering: %ld ms\n", timediff(startTime, clockMsec()));
-		#endif
+		if (verbose)
+			printf("voxel clustering (largest cluster, bubbles): %ld ms\n", timediff(startTime, clockMsec()));
 	}
 	//edge darken
 	float edgeMax = 0.75 * (mn + isolevel);
 	int vx = 0;
+	int lo[3] = {NX,NY,NZ};
+	int hi[3] = {0,0,0};
 	for (int z=0;z<NZ;z++) //darken edges
 		for (int y=0;y<NY;y++)
 			for (int x=0;x<NX;x++) {
+				if (img[vx] >= isolevel) {
+					lo[0] = MIN(x, lo[0]);
+					lo[1] = MIN(y, lo[1]);
+					lo[2] = MIN(z, lo[2]);
+					hi[0] = MAX(x, hi[0]);
+					hi[1] = MAX(y, hi[1]);
+					hi[2] = MAX(z, hi[2]);
+				}
 				if ((x == 0) || (y == 0) || (z == 0) || (x == (NX-1)) || (y == (NY-1)) || (z == (NZ-1)) )
 					img[vx] = MIN(edgeMax, img[vx]);
 				vx++;
 			}
+	//printf("Bounding box for bright voxels: %d..%d %d..%d %d..%d\n", lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]);
+	for (int i=0;i<3;i++) {
+		lo[i] = MAX(lo[i] - 1, 0);
+		hi[i] = MIN(hi[i] + 2, hdr->dim[i+1]);
+	}
 	// Polygonise the grid
-	#ifdef USE_TIMERS
-		startTime = clockMsec();
-	#endif
+	startTime = clockMsec();
 	GRIDCELL grid;
-	int ptsCapacity = 65536;
+	int ptsCapacity = 65536 * 16;
 	vec3d *pts = (vec3d *) malloc(ptsCapacity * sizeof(vec3d));
 	int npt = 0;
-	for (int z=0;z<NZ-1;z++) {
+/*	for (int z=0;z<NZ-1;z++) {
 		for (int y=0;y<NY-1;y++) {
 			int zy = (z * NXY) + (y * NX);
 			for (int x=0;x<NX-1;x++) {
+*/
+	for (int z=lo[2];z<hi[2]-1;z++) {
+		for (int y=lo[1];y<hi[1]-1;y++) {
+			int zy = (z * NXY) + (y * NX);
+			for (int x=lo[0];x<hi[0]-1;x++) {
 				grid.val[0] = img[zy+x];
 				grid.val[1] = img[zy+x+1];
 				grid.val[2] = img[zy+x+1+NX];
@@ -844,14 +864,7 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 				grid.val[5] = img[zy+x+1+NXY];
 				grid.val[6] = img[zy+x+1+NX+NXY];
 				grid.val[7] = img[zy+x+NX+NXY];
-				grid.p[0] = setVec3d(x  ,y  ,z  );
-				grid.p[1] = setVec3d(x+1,y  ,z  );
-				grid.p[2] = setVec3d(x+1,y+1,z  );
-				grid.p[3] = setVec3d(x  ,y+1,z  );
-				grid.p[4] = setVec3d(x  ,y  ,z+1);
-				grid.p[5] = setVec3d(x+1,y  ,z+1);
-				grid.p[6] = setVec3d(x+1,y+1,z+1);
-				grid.p[7] = setVec3d(x  ,y+1,z+1);
+				grid.p000 = setVec3d(x  ,y  ,z  );
 				if ((npt + 30) > ptsCapacity) {
 					ptsCapacity = round (ptsCapacity * 1.5);
 					pts = (vec3d *)realloc(pts,ptsCapacity*sizeof(vec3d));
@@ -877,20 +890,17 @@ int meshify(float * img, nifti_1_header * hdr, float isolevel, vec3i **t, vec3d 
 		tris[i].z = j;
 		j++;
 	}
-	#ifdef USE_TIMERS
+	if (verbose)
 		printf("marching cubes: %ld ms\n", timediff(startTime, clockMsec()));
-		startTime = clockMsec();
-	#endif
+	startTime = clockMsec();
 	npt = unify_vertices(&pts, tris, ntri, verbose);
-	#ifdef USE_TIMERS
+	if (verbose)
 		printf("vertex welding: %ld ms\n", timediff(startTime, clockMsec()));
-		startTime = clockMsec();
-	#endif
+	startTime = clockMsec();
 	if (npt < 3) return EXIT_FAILURE;
 	ntri = remove_degenerate_triangles(pts, &tris, ntri, verbose);
-	#ifdef USE_TIMERS
+	if (verbose)
 		printf("remove degenerates: %ld ms\n", timediff(startTime, clockMsec()));
-	#endif
 	*t = tris;
 	*p = pts;
 	*nt = ntri;
@@ -922,7 +932,7 @@ typedef struct {
 } vec3s; //single precision
 
 vec3s vec3d2vec4s(vec3d v) {
-	return (vec3s){.x = v.x, .y = v.y, .z = v.z};
+	return (vec3s){.x = (float)v.x, .y = (float)v.y, .z = (float)v.z};
 }
 
 int save_freesurfer(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt) {
@@ -1009,7 +1019,7 @@ int save_mz3(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt, bool i
 		#endif
 		free(trisSwap);
 	} else {
-		#ifdef HAVE_ZLIB 
+		#ifdef HAVE_ZLIB
 		if (isGz)
 			gzwrite(fgz, tris, ntri * sizeof(vec3i));
 		else
@@ -1134,7 +1144,12 @@ int save_gii(const char *fnm, vec3i *tris, vec3d *pts, int ntri, int npt, bool i
 	fputs("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",fp);
 	fputs("<!DOCTYPE GIFTI SYSTEM \"http://www.nitrc.org/frs/download.php/115/gifti.dtd\">\n",fp);
 	fputs("<GIFTI Version=\"1.0\"  NumberOfDataArrays=\"2\">\n",fp);
-	fputs("   <MetaData/>\n",fp);
+	fputs("   <MetaData>\n",fp);
+	fputs("      <MD>\n",fp);
+	fputs("          <Name><![CDATA[nii2mesh-version]]></Name>\n",fp);
+	fputs("          <Value><![CDATA[nii2mesh, 1 Jan 2022]]></Value>\n",fp);
+	fputs("      </MD>\n",fp);
+	fputs("   </MetaData>\n",fp);
 	fputs("   <LabelTable/>\n",fp);
 	fputs("   <DataArray  ArrayIndexingOrder=\"RowMajorOrder\"\n",fp);
 	fputs("               DataType=\"NIFTI_TYPE_INT32\"\n",fp);

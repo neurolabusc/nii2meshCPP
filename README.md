@@ -22,12 +22,13 @@ Here are the instructions for using this tool (you can also run the executable w
 Converts a NIfTI voxelwise image to triangulated mesh.
 Usage: ./nii2mesh [options] niftiname meshname
 Options
-    -a v    atlas of indexed integers (0=not atlas, 1=atlas, default 0)
+    -a s    atlas text file (e.g. '-a D99_v2.0_labels_semicolon.txt')
     -b v    bubble fill (0=bubbles included, 1=bubbles filled, default 0)
     -i v    isosurface intensity (default mid-range)
     -l v    only keep largest cluster (0=all, 1=largest, default 1)
     -p v    pre-smoothing (0=skip, 1=smooth, default 1)
     -r v    reduction factor (default 0.25)
+    -q v    quality (0=fast, 1= balanced, 2=best, default 1)
     -s v    post-smoothing iterations (default 0)
     -v v    verbose (0=silent, 1=verbose, default 0)
 mesh extension sets format (.gii, .mz3, .obj, .ply, .pial, .stl, .vtk)
@@ -103,19 +104,36 @@ nii2mesh -r 0.15 bet.nii.gz r15.ply
 
 ## Atlases
 
-Atlases identify different discrete brain regions, such as [Brodmann Area](https://en.wikipedia.org/wiki/Brodmann_area).Most NIfTI atlases store each voxel intensity as an integer, identifying the region. Here, we consider this [example dataset](https://afni.nimh.nih.gov/pub/dist/atlases/macaque/macaqueatlas_1.2b/). The nii2mesh `-a 1` argument is similar to the AFNI isosurface [`-isorois`](https://afni.nimh.nih.gov/pub/dist/doc/program_help/IsoSurface.html) option, to create an isosurface for each unique value in the input volume. 
+Atlases identify different discrete brain regions, such as [Brodmann Area](https://en.wikipedia.org/wiki/Brodmann_area). Most NIfTI atlases store each voxel intensity as an integer, identifying the region. Here, we consider this [example dataset](https://afni.nimh.nih.gov/pub/dist/doc/htmldoc/nonhuman/macaque_tempatl/atlas_d99v2.html). The nii2mesh `-a 1` argument is similar to the AFNI isosurface [`-isorois`](https://afni.nimh.nih.gov/pub/dist/doc/program_help/IsoSurface.html) option, to create an isosurface for each unique value in the input volume. 
 
 The simplest usage would be:
 
 ```
-nii2mesh -a 1 D99_atlas_1.2b_left.nii.gz D99roi.mz3
+nii2mesh -a 1 D99_atlas_v2.0_right.nii.gz D99.gii
 ```
 
 Note that the presmooth may slightly erode very small or thin regions. If this is undesirable, you could turn off the pre-smoothing and consider applying a small amount of smoothing after the mesh is created:
 
 ```
-nii2mesh -p 0 -s 10 -a 1 D99_atlas_1.2b_left.nii.gz D99s10roi.mz3
+nii2mesh -p 0 -s 10 -a 1 D99_atlas_v2.0_right.nii.gz D99s10roi.mz3
 ```
+
+Alternatively, you can provide the file name for a semicolon delimited text file. The format should have the index number in the first column, and the nickname in the second column. Consider the provided example file `D99_v2.0_labels_semicolon.txt`:
+
+```
+1;pu;putamen;Basal ganglia;Striatum
+2;cd;caudate nucleus;Basal ganglia;Striatum
+3;NA;nucleus accumbens;Basal ganglia;Striatum_ventral striatum
+...
+```
+
+We could use this with the command:
+
+```
+nii2mesh -a D99_v2.0_labels_semicolon.txt D99_atlas_v2.0_right.nii.gz D99_.gii
+```
+
+with the resulting meshes have the file names `D99_pu.k1.gii`, `D99_cd.k2.gii`, etc.
 
 ## Printing
 
