@@ -247,7 +247,7 @@
 365;EI;"entorhinal cortex, intermediate division"
 366;RPB;rostral parabelt region of the auditory cortex
 367;13a;orbital prefrontal area
-368;AONd/m;"anterior olfactory nucleus, dorsal and medial division"
+368;AONd-m;"anterior olfactory nucleus, dorsal and medial division"
 369;F3;agranular frontal area F3 (or SMA)
 370;R;"rostral, core region of the auditory cortex"
 371;V6;visual area 6 (or area PO)
@@ -268,7 +268,7 @@
 386;CA2;CA2 subfield of hippocampus
 387;MIP;medial intraparietal area
 388;PIP;posterior intraparietal area
-389;7b_(PFG/PF);caudal inferior parietal lobule area (or PFG/PF)
+389;7b_(PFG-PF);caudal inferior parietal lobule area (or PFG-PF)
 390;TEpd;dorsal subregion of posterior TE
 391;V3v;"visual area 3, ventral part"
 392;area_44;ventro-lateral prefrontal area in the arcuate sulcus lower limb (asl)
@@ -296,7 +296,7 @@
 416;Pir;piriform cortex
 417;Iapm;posteromedial agranular insula area
 418;RT;"rostrotemporal, core region of the auditory cortex"
-419;7a_(Opt/PG);caudal inferior parietal lobule area (or Opt / PG)
+419;7a_(Opt-PG);caudal inferior parietal lobule area (or Opt - PG)
 420;TEpv;ventral subregion of posterior TE
 421;V3A;visual area V3A
 422;45a;ventro-lateral prefrontal area
@@ -304,7 +304,7 @@
 424;F7;agranular frontal area F7 (or 6DR)
 425;46d;dorso-lateral prefrontal area in the dorsal bank and lip of the principal sulcus (ps)
 426;Iai;intermediate agranular insula area
-427;F5_(6Va/6Vb);agranular frontal area F5 (or 6Va/6Vb) 
+427;F5_(6Va-6Vb);agranular frontal area F5 (or 6Va-6Vb) 
 428;LIPd;"lateral intraparietal area, dorsal subdivision"
 429;V2;visual area 2  
 430;36r;"area 36 of the perirhinal cortex, rostral subregion"
@@ -312,7 +312,7 @@
 432;5_(PEa);superior parietal lobule area (or PEa)
 433;TGsts;sts part of the temporal pole
 434;RTM;"medial rostrotemporal, belt region of the auditory cortex"
-435;3a/b;"somatosensory areas 3a and 3b"
+435;3a-b;"somatosensory areas 3a and 3b"
 436;ME;medial nucleus of amygdala
 437;AHA;amygdalohippocampal area
 438;TGa;agranular part of the temporal pole
@@ -320,15 +320,15 @@
 440;TF;area TF of the parahippocampal cortex
 441;45b;"ventro-lateral prefrontal area in the arcuate sulcus lower limb (asl)"
 442;TEad;dorsal subregion of anterior TE
-443;PGa;sts fundus/dorsal bank area
-444;F4;agranular frontal area F4 (or 4C/6Va/6Vb)
+443;PGa;sts fundus-dorsal bank area
+444;F4;agranular frontal area F4 (or 4C-6Va-6Vb)
 445;Bmc;"basal nucleus of amygdala, magnocellular subdivision"
 446;8Ad;"periarcuate area (or frontal eye field), dorsal subdivision"
 447;RTL;"lateral rostrotemporal, belt region of the auditory cortex"
 448;12o;orbital prefrontal area
 449;CM;"caudomedial, belt region of the auditory cortex "
 450;TAa;sts dorsal bank area 
-451;F2_(6DR/6DC);agranular frontal area F2 (or 6DR/6DC) 
+451;F2_(6DR-6DC);agranular frontal area F2 (or 6DR-6DC) 
 452;TGvg;ventral granular part of the temporal pole
 453;CL;"caudal lateral, belt region of the auditory cortex"
 455;paraS;parasubiculum
@@ -357,7 +357,7 @@
 491;TTv;ventral tenia tectum 
 492;EO;"entorhinal cortex, olfactory division"
 493;TH;area TH of the parahippocampal cortex
-508;PACo/Pir;"periamygdaloid cortex o/piriform cortex"
+508;PACo-Pir;"periamygdaloid cortex o-piriform cortex"
 509;PAC2;periamygdaloid cortex 2
 510;MGv;"medial geniculate nucleus, ventral division"
 511;MGad;"medial geniculate nucleus, anterodorsal division"
