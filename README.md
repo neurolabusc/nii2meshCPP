@@ -2,12 +2,15 @@
 
 This tool converts a NIfTI 3D voxel image to a triangulated mesh. It can save meshes in in the GIfTI (.gii), mz3, obj, ply, FreeSurfer (.pial), stl, vtk, formats. You can use [dcm2niix](https://github.com/rordenlab/dcm2niix) to convert DICOM images to NIfTI.
 
+**This C++ is not maintained.** Please use the [pure C translation](https://github.com/neurolabusc/nii2mesh). The C simplification is thread safe and includes minor enhancements. 
+
+
 ## Compiling
 
 For Unix computers (Linux, macOS), you can build the executable using the make command:
 
 ```
-git clone https://github.com/neurolabusc/nii2mesh
+git clone https://github.com/neurolabusc/nii2meshCPP
 cd nii2mesh/src
 make
 ```
